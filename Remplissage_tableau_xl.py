@@ -4,12 +4,14 @@ sys.path.append('/home/pi/.local/lib/python3.7/site-packages')
 import smbus
 import math
 import time
+import numpy as np
 import openpyxl
+import pandas as pd
 from datetime import datetime
 from datetime import timedelta
 from threading import Thread
 
-global str_folder 
+global str_folder
 global wb
 global ws
 
@@ -18,16 +20,16 @@ str_folder = '/home/pi/Desktop/Data/'
 # Power management registers
 power_mgmt_1 = 0x6b
 power_mgmt_2 = 0x6c
- 
+
 def read_byte(adr):
 	return bus.read_byte_data(address, adr)
- 
+
 def read_word(adr):
 	high = bus.read_byte_data(address, adr)
 	low = bus.read_byte_data(address, adr+1)
 	val = (high << 8) + low
 	return val
- 
+
 def read_word_2c(adr):
 	val = read_word(adr)
 	if (val >= 0x8000):
@@ -84,14 +86,14 @@ def acc_magnitude_wo_gravity_ms2(xg_init, yg_init, zg_init):
         accel_xout = 0
         accel_yout = 0
         accel_zout = 0
-        print("Exception OSERROR levee dans acc_magnitude_wo_gravity_ms2!")	
+        print("Exception OSERROR levee dans acc_magnitude_wo_gravity_ms2!")
     return magnitude(accel_xout, accel_yout, accel_zout)
 
 while True:
     try:
         bus = smbus.SMBus(1) # or bus = smbus.SMBus(1) for Revision 2 boards
         address = 0x68 # This is the address value read via the i2cdetect command
-         
+
         # Now wake the 6050 up as it starts in sleep mode
         bus.write_byte_data(address, power_mgmt_1, 0)
         break
@@ -123,7 +125,7 @@ def get_max_accel_minute():
         time.sleep(0.010)
     print("Last max acceleration recorded for " + t + " : " + str(round(max_accel,3)) + "m/s2!")
     return (t, max_accel)
-    
+
 def createTimeRange(wb, ws, inter_time_s):
     #inter_time_s = 4 #seconde - interval de mesure
     Nbr_interval_hr = int(60/inter_time_s*60)
@@ -131,12 +133,12 @@ def createTimeRange(wb, ws, inter_time_s):
     start_time_hour=20 #hr
     start_time_minute=00 #minutes
     Temps_enregistrement=16 #heures
-    
+
     for i in range(Nbr_interval_hr*Temps_enregistrement):
         m = timedelta(seconds = i*inter_time_s)
         str_heure = str((datetime(2021,1,1,start_time_hour,start_time_minute)+m).strftime('%H:%M:%S'))
         ws.cell(row=2+i, column=1, value= str_heure)
-        #print("cell row=", str(2+i), "; value = ", str_heure) 
+        #print("cell row=", str(2+i), "; value = ", str_heure)
     reference = 'Accel_data!$A$2:$A$'+str(1+Nbr_interval_hr*Temps_enregistrement)
     new_range = openpyxl.workbook.defined_name.DefinedName(str_month + "_TimeRange", attr_text=reference)
     wb.defined_names.append(new_range)
@@ -163,9 +165,9 @@ def time_left_before_start():
         _h = -1
     else:
         _h = int((20- int(datetime.now().strftime('%H'))-1)*60 + 60 - int(datetime.now().strftime('%M')))
-        
+
     return _h
-    
+
 def are_we_into_recording_time(time_row):
     t=str(datetime.now().strftime('%H:%M:%S'))
     bool_now = False
@@ -207,8 +209,8 @@ def handle_new_year(str_last_year, wb):
     return str_year, wb
 
 def handle_new_month(str_last_month, wb, inter_time_s):
-    str_month = str(datetime.now().strftime('%B'))  
-    
+    str_month = str(datetime.now().strftime('%B'))
+
     try:
         ws = wb[str_month + '_data']
     except:
@@ -216,15 +218,15 @@ def handle_new_month(str_last_month, wb, inter_time_s):
             ws = wb.create_sheet(str_month + '_data', 0)
             print("New month sheet '" + str_month + "_data' created!")
             createTimeRange(wb, ws, inter_time_s)
-    
+
     return str_month, ws
 
 def saving_file(obj, recfile):
     print("start saving process...")
     obj.save(recfile)
     print("File " + recFile + " saved!")
-    
-    
+
+
 inter_time_s = 10 #secondes d'interval de mesure
 init_time_row = True
 str_month = "xxx"
@@ -234,11 +236,11 @@ wb = openpyxl.Workbook()
 while True:
     str_year, wb = handle_new_year(str_year, wb)
     str_month, ws = handle_new_month(str_month, wb, inter_time_s)
-    
+
     if init_time_row:
         time_row = get_time_row()
         init_time_row = False
-        
+
     if time_left_before_start() <= 0:
         col=get_correct_col()
         while True:
@@ -260,10 +262,3 @@ while True:
         time_left_min = time_left_before_start()
         print("sleep mode for " + str(time_left_min) + " minutes")
         time.sleep(time_left_min*60)
-
-
-
-
-
-
-

@@ -5,13 +5,15 @@ import cv2
 import time
 import datetime
 import imutils
+import numpy as np
+from Collect_Data import*
 
 debugToken=0
 
 
 def motion_detection():
-    video_capture = cv2.VideoCapture(0) # value (0) selects the devices default camera
-    time.sleep(2)
+    video_capture = cv2.VideoCapture('rtsp://Arthur:P0pu$$e@192.168.0.27:554/stream2') # value (0) selects the devices default camera
+    time.sleep(1)
 
     first_frame = None # instinate the first fame
     activityFactor = 0
@@ -58,15 +60,19 @@ def motion_detection():
 
 
         # edit the ** thresh ** depending on the light/dark in room, change the 100(anything pixel value over 100 will become 255(white))
-        thresh = cv2.threshold(frame_delta, 100, 255, cv2.THRESH_BINARY)[1]
+        #thresh = cv2.threshold(frame_delta, 100, 255, cv2.THRESH_BINARY)[1]
         # threshold gives two outputs retval,threshold image. using [1] on the end i am selecting the threshold image that is produced
 
+        thresh_adaptative = cv2.adaptiveThreshold(frame_delta,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
+            cv2.THRESH_BINARY_INV,11,2)
 
-
-        dilate_image = cv2.dilate(thresh, None, iterations=2)
+        dilate_image = cv2.dilate(thresh_adaptative, None, iterations=2)
         # dilate = dilate,grow,expand - the effect on a binary image(black background and white foregorund) is to enlarge/expand the white
         # pixels in the foreground wich are white(255), element=Mat() = default 3x3 kernal matrix and iterartions=2 means it
         # will do it twice
+
+        kernel = np.ones((3,3),np.uint8)
+        opened_image = cv2.morphologyEx(thresh_adaptative, cv2.MORPH_OPEN, kernel)
 
         cnt = cv2.findContours(dilate_image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[0]
         # contours gives 3 diffrent ouputs image, contours and hierarchy, so using [1] on end means contours = [1](cnt)
@@ -84,11 +90,14 @@ def motion_detection():
         if cnt is not None:
             for c in cnt:
                 activityFactor = activityFactor + cv2.contourArea(c)
-                if cv2.contourArea(c) > 800: # if contour area is less then 800 non-zero(not-black) pixels(white)
+                if cv2.contourArea(c) > 200: # if contour area is less then 800 non-zero(not-black) pixels(white)
                     (x, y, w, h) = cv2.boundingRect(c) # x,y are the top left of the contour and w,h are the width and hieght
 
                     cv2.rectangle(frame, (x,y), (x+w, y+h), (0, 255, 0), 2) # (0, 255, 0) = color R,G,B = lime / 2 = thickness(i think?)(YES IM RITE!)
-                    # image used for rectangle is frame so that its on the secruity feed image and not the binary/threshold/foreground image
+                    cv2.rectangle(dilate_image, (x,y), (x+w, y+h), (0, 255, 0), 2)
+                    cv2.putText(dilate_image, 'Cnt val: %s' % (str(cv2.boundingRect(c))),
+                        (x,y-20), cv2.FONT_HERSHEY_SIMPLEX , 0.5, (0, 0, 255), 2)#
+                    #image used for rectangle is frame so that its on the secruity feed image and not the binary/threshold/foreground image
                     # as its already used the threshold/(binary image) to find the contours this image/frame is what image it will be drawed on
 
                     text = 'Occupied'
@@ -114,16 +123,17 @@ def motion_detection():
         # the image is - 10 so oppisite end at bottom instead of being at the top like the other text
 
         cv2.imshow('Security Feed', frame)
-        #cv2.imshow('Threshold(foreground mask)', dilate_image)
-        cv2.imshow('Frame_delta', frame_delta)
-
+        cv2.imshow('frame_delta', frame_delta)
+        cv2.imshow('Frame_thresh_adaptative', thresh_adaptative)
+        cv2.imshow('Frame_dilate', dilate_image)
+        cv2.imshow('Frame_opened_image', opened_image)
         key = cv2.waitKey(1) & 0xFF # (1) = time delay in seconds before execution, and 0xFF takes the last 8 bit to check value or sumin
         if key == ord('q'):
             cv2.destroyAllWindows()
             break
 
         first_frame = greyscale_image
-
+        time.sleep(0.5)
 
 if __name__=='__main__':
     motion_detection()
