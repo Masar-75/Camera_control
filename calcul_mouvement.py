@@ -3,21 +3,35 @@
 #imports
 import cv2
 import time
-import datetime
+from datetime import datetime
 import imutils
 import numpy as np
-from Collect_Data import*
+#from Collect_Data import *
 
 debugToken=0
 
 
-def motion_detection():
-    video_capture = cv2.VideoCapture('rtsp://Arthur:P0pu$$e@192.168.0.27:554/stream2') # value (0) selects the devices default camera
-    time.sleep(1)
+def motion_detection(_tps):
 
+    _temps_lancement = datetime.now()
+    _temps_maintenant = datetime.now()
+    difference = (_temps_maintenant - _temps_lancement).total_seconds()
     first_frame = None # instinate the first fame
     activityFactor = 0
-    while True:
+    video_capture = cv2.VideoCapture(0)
+    while difference < _tps:
+        #video_capture = cv2.VideoCapture('rtsp://Arthur:P0pu$$e@192.168.0.27:554/stream2')
+        # value (0) selects the devices default camera
+        #cv2.destroyAllWindows()
+        print("Round activity factor result :" + str(int(activityFactor))+ "\nTime remaining : " + str(int(_tps-difference)) +"s")
+
+
+        if not video_capture.isOpened():
+            print("Cannot open camera")
+
+
+        #time.sleep(1)
+
         frame = video_capture.read()[1] # gives 2 outputs retval,frame - [1] selects frame
         text = 'Unoccupied'
 
@@ -26,7 +40,7 @@ def motion_detection():
             cv2.waitKey()
             cv2.destroyAllWindows()
 
-        greyscale_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # make each frame greyscale wich is needed for threshold
+        greyscale_frame = cv2.cvtColor(frame, 6) #cv2.COLOR_BGRA2GRAY=6 # make each frame greyscale wich is needed for threshold
 
         gaussian_frame = cv2.GaussianBlur(greyscale_frame, (21,21),0)
         # uses a kernal of size(21,21) // has to be odd number to to ensure there is a valid integer in the centre
@@ -79,10 +93,11 @@ def motion_detection():
         # cv2.CHAIN_APPROX_SIMPLE saves memory by removing all redundent points and comppressing the contour, if you have a rectangle
         # with 4 straight lines you dont need to plot each point along the line, you only need to plot the corners of the rectangle
         # and then join the lines, eg instead of having say 750 points, you have 4 points.... look at the memory you save!
+
         if debugToken:
             if cnt is None: print("cnt is none!")
-            cv2.imshow("thresh", thresh)
-            cv2.imshow("dilate_image", thresh)
+            cv2.imshow("thresh", thresh_adaptative)
+            cv2.imshow("dilate_image", dilate_image)
             cv2.waitKey()
             cv2.destroyAllWindows()
 
@@ -116,7 +131,7 @@ def motion_detection():
             (10,40), cv2.FONT_HERSHEY_SIMPLEX , 0.5, (0, 0, 255), 2)
 
 
-        cv2.putText(frame, datetime.datetime.now().strftime('%A %d %B %Y %I:%M:%S%p'),
+        cv2.putText(frame, datetime.now().strftime('%A %d %B %Y %I:%M:%S%p'),
             (10, frame.shape[0] - 10), cv2.FONT_HERSHEY_SIMPLEX , 0.35, (0, 0, 255),1) # frame.shape[0] = hieght, frame.shape[1] = width,ssssssssssssss
         # using datetime to get date/time stamp, for font positions using frame.shape() wich returns a tuple of (rows,columns,channels)
         # going 10 accross in rows/width so need columns with frame.shape()[0] we are selecting columns so how ever many pixel height
@@ -135,5 +150,11 @@ def motion_detection():
         first_frame = greyscale_image
         time.sleep(0.5)
 
+        _temps_maintenant = datetime.now()
+        difference = (_temps_maintenant - _temps_lancement).total_seconds()
+
+    video_capture.release()
+    return activityFactor
+
 if __name__=='__main__':
-    motion_detection()
+    print(str(motion_detection(35)))
