@@ -4,3 +4,4 @@ sudo apt-get install python3-matplotlib
 sudo pip install pandas
 sudo apt-get install python3-picamera
 sudo pip install imutils
+pip install adafruit-circuitpython-displayio-sh1106
