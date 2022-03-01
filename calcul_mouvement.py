@@ -7,7 +7,6 @@ from datetime import datetime
 import imutils
 import numpy as np
 #from Collect_Data import *
-
 debugToken=0
 
 
